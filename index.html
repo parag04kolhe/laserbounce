@@ -157,6 +157,25 @@ canvas#knob:active{cursor:grabbing}
 .btn:disabled{opacity:.35;cursor:not-allowed;animation:none}
 .toast{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-12px);background:var(--panel);border:1px solid var(--border);padding:9px 16px;border-radius:10px;font-size:11px;letter-spacing:.15em;color:var(--ink-dim);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:5;text-align:center;max-width:80%}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- REWARDED AD MODAL ---- */
+#ad-modal{position:absolute;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:50;opacity:0;pointer-events:none;transition:opacity .22s}
+#ad-modal.show{opacity:1;pointer-events:all}
+.ad-modal-box{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:28px 24px 22px;max-width:300px;width:88%;text-align:center;display:flex;flex-direction:column;gap:14px;transform:scale(.92);transition:transform .22s}
+#ad-modal.show .ad-modal-box{transform:scale(1)}
+.ad-modal-icon{font-size:32px;line-height:1}
+.ad-modal-title{font-size:13px;letter-spacing:.18em;color:var(--ink)}
+.ad-modal-sub{font-size:10px;letter-spacing:.12em;color:var(--ink-dim);line-height:1.6}
+.ad-modal-reward{font-size:10px;letter-spacing:.14em;color:var(--gold);background:rgba(253,224,71,.07);border:1px solid rgba(253,224,71,.22);border-radius:8px;padding:8px 12px}
+.ad-progress-ring{position:relative;width:56px;height:56px;margin:0 auto}
+.ad-progress-ring svg{transform:rotate(-90deg)}
+.ad-progress-ring .ring-track{stroke:rgba(255,255,255,.08);fill:none}
+.ad-progress-ring .ring-fill{stroke:var(--gold);fill:none;stroke-linecap:round;transition:stroke-dashoffset .18s linear}
+.ad-progress-ring .ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.1em;color:var(--ink)}
+.ad-modal-cancel{font-size:9px;letter-spacing:.15em;color:var(--ink-dim);opacity:.55;cursor:pointer;padding:4px;margin-top:-4px}
+.ad-modal-cancel:hover{opacity:.9}
+.ad-modal-collect{display:none;font-size:11px;letter-spacing:.18em;color:#000;background:var(--gold);border:none;border-radius:10px;padding:13px 28px;cursor:pointer;font-family:inherit;font-weight:700}
+.ad-modal-collect.show{display:block;animation:pop .3s cubic-bezier(.2,.9,.3,1.2)}
 .tut{position:absolute;pointer-events:none;z-index:4;opacity:.85;transition:opacity .3s;width:46px;height:46px}
 .tut.hidden{opacity:0}
 .tut .ring{position:absolute;inset:0;border-radius:50%;border:2px solid var(--gold);box-shadow:0 0 16px rgba(253,224,71,.6);animation:tut-ping 1.6s ease-out infinite}
@@ -658,6 +677,25 @@ canvas#knob:active{cursor:grabbing}
     </div>
     <div id="tut" class="tut hidden"><div class="ring"></div></div>
     <div id="toast" class="toast"></div>
+
+    <!-- ===== REWARDED AD MODAL ===== -->
+    <div id="ad-modal">
+      <div class="ad-modal-box">
+        <div class="ad-modal-icon">📺</div>
+        <div class="ad-modal-title">WATCH A SHORT AD</div>
+        <div class="ad-modal-reward">+2 HINTS UNLOCKED</div>
+        <div class="ad-modal-sub">A 15-second ad keeps the game free.<br>Your hints will appear immediately after.</div>
+        <div class="ad-progress-ring" id="ad-ring">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle class="ring-track" cx="28" cy="28" r="23" stroke-width="4"/>
+            <circle class="ring-fill" id="ad-ring-fill" cx="28" cy="28" r="23" stroke-width="4" stroke-dasharray="144.51" stroke-dashoffset="144.51"/>
+          </svg>
+          <div class="ring-label" id="ad-ring-label">15</div>
+        </div>
+        <button class="ad-modal-collect" id="ad-collect-btn">⚡ COLLECT HINTS</button>
+        <div class="ad-modal-cancel" id="ad-cancel-btn">✕ CANCEL</div>
+      </div>
+    </div>
     <div id="chain-progress" class="chain-progress hidden"></div>
     <div id="degrade-banner" class="degrade-banner hidden">
       <span class="tag">📺 AD</span>
@@ -1184,6 +1222,7 @@ const state={
   hintBeam:null,               // legacy (kept for compat)
   hintPaths:[],                // full laser paths for hint overlay (all beams)
   hintActive:false,            // true while 3-second hint window is open
+  hintCredits:3,               // free hints: 3 to start, +2 per rewarded ad
   progress:loadProgress()
 };
 function loadProgress(){try{const d=JSON.parse(localStorage.getItem('laserbounce_v6'))||{completed:[],best:{},streak:0};if(d.streak==null)d.streak=0;return d}catch{return{completed:[],best:{},streak:0}}}
@@ -2083,7 +2122,13 @@ document.getElementById('replay-btn').addEventListener('click',()=>{
 document.getElementById('hint-btn').addEventListener('click',()=>{
   if(state.firing||state.won)return;
   audio();sndTick();
-  computeHintBeam();
+  if(state.hintCredits>0){
+    state.hintCredits--;
+    updateHintBtn();
+    computeHintBeam();
+  }else{
+    showAdModal('hint');
+  }
 });
 document.getElementById('back-btn').addEventListener('click',()=>{
   document.getElementById('overlay-levelselect').classList.add('hidden');
@@ -2289,6 +2334,98 @@ function fire(){
   sndFire();
   document.getElementById('degrade-banner').classList.add('hidden');
 }
+
+// =====================================================================
+// HINT CREDIT SYSTEM + REWARDED AD MODAL
+// =====================================================================
+function updateHintBtn(){
+  const btn=document.getElementById('hint-btn');
+  if(state.hintCredits>0){
+    btn.textContent=`💡 ${state.hintCredits}`;
+    btn.style.opacity='1';
+  }else{
+    btn.textContent='💡 📺';
+    btn.style.opacity='0.7';
+  }
+}
+
+// ── Rewarded Ad Modal ────────────────────────────────────────────────
+// To swap in a real SDK: replace the body of simulateRewardedAd()
+// with your provider's call (e.g. AdMob, IronSource, Poki SDK).
+// Call onAdComplete() when the user earns the reward.
+
+let _adContext=null; // 'hint' | 'skip'
+let _adTimer=null;
+const AD_DURATION=15; // seconds
+
+function showAdModal(context){
+  _adContext=context;
+  const modal=document.getElementById('ad-modal');
+  const fill=document.getElementById('ad-ring-fill');
+  const label=document.getElementById('ad-ring-label');
+  const collect=document.getElementById('ad-collect-btn');
+  const circumference=144.51;
+
+  // Reset ring
+  fill.style.strokeDashoffset=circumference;
+  label.textContent=AD_DURATION;
+  collect.classList.remove('show');
+  modal.classList.add('show');
+
+  let elapsed=0;
+  clearInterval(_adTimer);
+  _adTimer=setInterval(()=>{
+    elapsed++;
+    const remaining=AD_DURATION-elapsed;
+    const progress=elapsed/AD_DURATION;
+    fill.style.strokeDashoffset=circumference*(1-progress);
+    label.textContent=remaining>0?remaining:'✓';
+    if(elapsed>=AD_DURATION){
+      clearInterval(_adTimer);
+      collect.classList.add('show');
+      // ── SWAP THIS LINE for your real SDK reward callback ──
+      simulateRewardedAd();
+    }
+  },1000);
+}
+
+function closeAdModal(){
+  clearInterval(_adTimer);
+  document.getElementById('ad-modal').classList.remove('show');
+  _adContext=null;
+}
+
+// Simulated ad — replace with real SDK. Call onAdComplete() on reward.
+function simulateRewardedAd(){
+  // Real SDK example (Poki):
+  //   PokiSDK.rewardedBreak().then(success=>{ if(success) onAdComplete(); });
+  // Real SDK example (AdMob via Capacitor):
+  //   AdMob.showRewardVideoAd().then(()=>onAdComplete());
+  //
+  // For now: reward fires automatically when timer completes (collect btn shown).
+}
+
+function onAdComplete(){
+  state.hintCredits+=2;
+  updateHintBtn();
+  closeAdModal();
+  showToast('📺 AD COMPLETE · +2 HINTS UNLOCKED ⚡');
+  // If player triggered ad from in-game (not fail screen), fire the hint immediately
+  if(_adContext==='hint'&&!state.firing&&!state.won){
+    state.hintCredits--;
+    updateHintBtn();
+    computeHintBeam();
+  }
+}
+
+document.getElementById('ad-collect-btn').addEventListener('click',()=>{
+  onAdComplete();
+});
+
+document.getElementById('ad-cancel-btn').addEventListener('click',()=>{
+  closeAdModal();
+  showToast('HINT REQUIRES AD · TAP 💡 TO WATCH');
+});
 
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
@@ -4426,6 +4563,7 @@ initEditorPalette();
 // Pre-initialize with level 0 state (silent — world map is the entry screen)
 state.levelIndex=0;state.subLevelIndex=0;state.tries=0;state.totalTries=0;
 loadSubLevel();
+updateHintBtn(); // initialise hint button label with starting credits
 // Check for shared puzzle link (?p=ID), otherwise show world map
 checkForSharedPuzzle().then(isShared=>{
   if(!isShared)showWorldMap();
