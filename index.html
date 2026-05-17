@@ -112,6 +112,8 @@ canvas#knob:active{cursor:grabbing}
 #app.world-map-mode .knob-angle{visibility:hidden}
 #app.world-map-mode .knob-fire-col{visibility:hidden}
 #app.world-map-mode .knob-angle-col{visibility:hidden}
+/* Hide gameplay buttons in world-map-mode */
+#app.world-map-mode footer.hud-bottom{display:none}
 
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(7,9,15,.78);backdrop-filter:blur(8px);z-index:10;transition:opacity .25s;padding:20px}
 .overlay.hidden{opacity:0;pointer-events:none}
@@ -276,9 +278,11 @@ canvas#knob:active{cursor:grabbing}
 /* BUILD button */
 .btn.build-btn{
   width:100%;margin-top:10px;font-size:10.5px;letter-spacing:.22em;
-  color:var(--ink-dim);border-color:rgba(160,180,210,.18);
-  background:rgba(14,20,38,.6);min-height:51px;padding:5px;
+  color:var(--accent);border-color:rgba(240,171,252,.38);
+  background:linear-gradient(135deg,rgba(240,171,252,.12),rgba(240,171,252,.04));
+  min-height:51px;padding:5px;
   border-radius:9px;
+  box-shadow:0 2px 16px rgba(240,171,252,.1),inset 0 1px 0 rgba(240,171,252,.08);
 }
 /* ---- DAILY PUZZLE CARD ---- */
 .daily-card{
@@ -356,21 +360,27 @@ canvas#knob:active{cursor:grabbing}
 }
 /* ---- MENU KNOB IMPROVEMENTS ---- */
 #app.world-map-mode .knob-row{
-  background:linear-gradient(180deg,rgba(20,28,50,.75),rgba(20,28,50,.4));
-  border-color:rgba(34,211,238,.25);
+  background:linear-gradient(180deg,rgba(20,28,50,.85),rgba(20,28,50,.5));
+  border-color:rgba(34,211,238,.35);
+  box-shadow:0 0 20px rgba(34,211,238,.1),inset 0 1px 0 rgba(34,211,238,.08);
 }
 #app.world-map-mode canvas#knob{
   width:140px;height:140px;
+  filter:drop-shadow(0 0 10px rgba(34,211,238,.35));
+  animation:knob-idle-pulse 3s ease-in-out infinite;
+}
+@keyframes knob-idle-pulse{
+  0%,100%{filter:drop-shadow(0 0 8px rgba(34,211,238,.30))}
+  50%{filter:drop-shadow(0 0 18px rgba(34,211,238,.65))}
 }
 .menu-knob-hint{
-  display:none;font-size:8px;letter-spacing:.22em;color:var(--ink-dim);
-  text-align:center;margin-top:4px;font-family:'IBM Plex Mono',monospace;
+  display:none;
 }
-#app.world-map-mode .menu-knob-hint{display:block}
 .menu-knob-label{
   display:none;font-family:'Chakra Petch',sans-serif;font-weight:700;
   font-size:11px;letter-spacing:.18em;color:var(--laser);
   text-align:center;line-height:1.3;
+  text-shadow:0 0 12px rgba(34,211,238,.45);
 }
 #app.world-map-mode .menu-knob-label{display:block}
 /* ---- ADMIN FLOATING PANEL ---- */
@@ -706,13 +716,12 @@ canvas#knob:active{cursor:grabbing}
         <div class="zone-map-header">SELECT ZONE</div>
         <div class="zone-grid" id="world-grid"></div>
         <button class="daily-card" id="daily-card-btn" onclick="openDailyPuzzle()">
-          <div class="daily-icon" style="font-size:22px;font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--gold);line-height:1;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:10px;letter-spacing:.06em;opacity:.8" id="daily-card-daynum">--</span><span style="font-size:8px;letter-spacing:.1em;opacity:.6" id="daily-card-month">---</span></div>
+          <div class="daily-icon" style="font-size:22px;font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--gold);line-height:1;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:12px;letter-spacing:.06em;opacity:.8" id="daily-card-daynum">--</span><span style="font-size:9.6px;letter-spacing:.1em;opacity:.6" id="daily-card-month">---</span></div>
           <div class="daily-info">
-            <div class="daily-label">DAILY PUZZLE</div>
+            <div class="daily-label" style="color:var(--ink);letter-spacing:.18em;font-size:8.5px">Start your daily streak</div>
             <div class="daily-name" id="daily-card-name">LOADING…</div>
             <div class="daily-streak" id="daily-card-streak"></div>
           </div>
-          <div class="daily-badge" id="daily-card-badge">PLAY</div>
         </button>
         <button class="btn build-btn" id="build-btn">⚙ BUILD</button>
       </div>
@@ -829,7 +838,7 @@ canvas#knob:active{cursor:grabbing}
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
       <canvas id="knob" width="176" height="176"></canvas>
-      <div class="menu-knob-hint">ROTATE · TAP TO ENTER</div>
+
     </div>
     <div class="knob-fire-col">
       <button class="btn primary fire ready" id="fire-btn">⚡ FIRE</button>
@@ -1990,8 +1999,7 @@ knob.addEventListener('pointermove',e=>{
 knob.addEventListener('pointerup',()=>{
   if(state.menuKnobDrag){
     state.menuKnobDrag=null;
-    // Tap (no real drag) activates the highlighted item
-    _activateMenuHighlight();
+    // Rotation alone does NOT open anything — only direct taps on buttons do
     return;
   }
   state.knobDrag=null;
@@ -2227,12 +2235,11 @@ function renderWorldGrid(){
     card.dataset.menuIdx=wi;
 
     if(isPrism){
-      // PRISM✦ — special layout: icon left, info right (horizontal for full-width card)
       if(isLocked){
         card.innerHTML=
           `<div class="wc-name" style="color:${w.color}">`+
             `<span class="prism-glyph">${w.icon}</span>`+
-            `PRISM <span style="font-size:11px;opacity:.7">✦</span>`+
+            `ZONE 4 <span style="font-size:11px;opacity:.7">✦</span>`+
           `</div>`+
           `<div class="wc-bar"><div class="wc-fill" style="width:0%;background:${w.color}"></div></div>`+
           `<div class="wc-lock">🔒 COMPLETE 2 ZONES TO UNLOCK</div>`;
@@ -2240,14 +2247,14 @@ function renderWorldGrid(){
         card.innerHTML=
           `<div class="wc-name" style="color:${w.color}">`+
             `<span class="prism-glyph">${w.icon}</span>`+
-            `PRISM <span style="font-size:14px;text-shadow:0 0 12px rgba(52,211,153,.9)">✦</span>`+
+            `ZONE 4 <span style="font-size:14px;text-shadow:0 0 12px rgba(52,211,153,.9)">✦</span>`+
           `</div>`+
           `<div class="wc-bar"><div class="wc-fill" style="width:${pct}%;background:${w.color}"></div></div>`+
           `<div class="wc-stat" style="color:${w.color}cc">${earnedStars}★ / ${maxStars}★ &nbsp;·&nbsp; ${completed}/${levCount}</div>`;
       }
     }else{
       card.innerHTML=
-        `<div class="wc-name" style="color:${w.color}">${w.icon} ${w.name}</div>`+
+        `<div class="wc-name" style="color:${w.color}">${w.icon} ZONE ${wi+1}</div>`+
         `<div class="wc-bar"><div class="wc-fill" style="width:${pct}%;background:${w.color}"></div></div>`+
         `<div class="wc-stat" style="color:${w.color}cc">${earnedStars}★ / ${maxStars}★</div>`;
     }
@@ -3192,7 +3199,7 @@ function renderKnob(){
   const curAngle=isMenuMode?0:getActiveAngle();
   const visualAngle=isMenuMode?(state.menuKnobAngle||0):curAngle*GEAR_RATIO;
 
-  const activeColor=isMenuMode?'rgba(34,211,238,.9)':isGlass?'rgba(52,211,153,.85)':'rgba(34,211,238,.85)';
+  const activeColor=isMenuMode?'rgba(34,211,238,.98)':isGlass?'rgba(52,211,153,.85)':'rgba(34,211,238,.85)';
   const dimColor='rgba(160,180,210,.22)';
   const accentColor=isMenuMode?'#22d3ee':isGlass?'#34d399':'#fde047';
 
@@ -3227,30 +3234,30 @@ function renderKnob(){
 
   // Gear body gradient fill
   const grd=kctx.createRadialGradient(0,-innerR*0.3,innerR*0.15,0,0,outerR);
-  grd.addColorStop(0,isMenuMode?'#1a3060':active?'#243350':'#161d2e');
-  grd.addColorStop(1,isMenuMode?'#0b1830':active?'#0d1322':'#090d18');
+  grd.addColorStop(0,isMenuMode?'#1e3870':active?'#243350':'#161d2e');
+  grd.addColorStop(1,isMenuMode?'#0d2040':active?'#0d1322':'#090d18');
   kctx.fillStyle=grd;kctx.fill();
 
   // Gear outline
   kctx.strokeStyle=activeColor;
   kctx.lineWidth=active?2.5:1.4;
-  kctx.shadowColor=accentColor;kctx.shadowBlur=isMenuMode?18:active?10:0;
+  kctx.shadowColor=accentColor;kctx.shadowBlur=isMenuMode?28:active?10:0;
   kctx.stroke();kctx.shadowBlur=0;
 
   // ---- INNER DISC ----
   const discR=innerR*0.62;
   kctx.beginPath();kctx.arc(0,0,discR,0,Math.PI*2);
   const grd2=kctx.createRadialGradient(-discR*0.25,-discR*0.25,2,0,0,discR);
-  grd2.addColorStop(0,isMenuMode?'#1e3a6e':active?'#2a3a5c':'#1a2336');
-  grd2.addColorStop(1,isMenuMode?'#0d1f45':active?'#101a2c':'#090d18');
+  grd2.addColorStop(0,isMenuMode?'#224480':active?'#2a3a5c':'#1a2336');
+  grd2.addColorStop(1,isMenuMode?'#0e2050':active?'#101a2c':'#090d18');
   kctx.fillStyle=grd2;kctx.fill();
   kctx.strokeStyle=activeColor;kctx.lineWidth=1.6;
-  kctx.shadowColor=accentColor;kctx.shadowBlur=isMenuMode?10:0;
+  kctx.shadowColor=accentColor;kctx.shadowBlur=isMenuMode?16:0;
   kctx.stroke();kctx.shadowBlur=0;
 
   // ---- SPOKES (4) ----
   kctx.lineCap='round';
-  kctx.strokeStyle=isMenuMode?'rgba(34,211,238,.28)':active?'rgba(180,210,255,.14)':'rgba(180,210,255,.05)';
+  kctx.strokeStyle=isMenuMode?'rgba(34,211,238,.45)':active?'rgba(180,210,255,.14)':'rgba(180,210,255,.05)';
   kctx.lineWidth=2.5;
   for(let i=0;i<4;i++){
     const a=i*Math.PI/2;
@@ -3262,7 +3269,7 @@ function renderKnob(){
 
   // ---- POINTER NEEDLE ----
   kctx.shadowColor=`${accentColor}cc`;
-  kctx.shadowBlur=isMenuMode?22:active?16:0;
+  kctx.shadowBlur=isMenuMode?32:active?16:0;
   kctx.fillStyle=accentColor;
   kctx.beginPath();
   kctx.moveTo(0,-discR*0.84);
@@ -4229,11 +4236,8 @@ function updateDailyCard(){
   const d=getDailyProgress();
   const solved=isDailySolvedToday();
   const streakEl=document.getElementById('daily-card-streak');
-  const badgeEl=document.getElementById('daily-card-badge');
   if(d.streak>0){streakEl.textContent=`🔥 ${d.streak} DAY STREAK`;}
   else{streakEl.textContent='';}
-  if(solved){badgeEl.textContent='✓ DONE';badgeEl.className='daily-badge solved';}
-  else{badgeEl.textContent='PLAY';badgeEl.className='daily-badge';}
 }
 
 async function openDailyPuzzle(){
