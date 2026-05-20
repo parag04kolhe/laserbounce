@@ -114,6 +114,9 @@ canvas#knob:active{cursor:grabbing}
 #app.world-map-mode .knob-angle-col{visibility:hidden}
 /* Hide gameplay buttons in world-map-mode */
 #app.world-map-mode footer.hud-bottom{display:none}
+/* Hide level info and map button in world-map-mode */
+#app.world-map-mode .level-info{display:none}
+#app.world-map-mode #map-btn{display:none}
 
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(7,9,15,.78);backdrop-filter:blur(8px);z-index:10;transition:opacity .25s;padding:20px}
 .overlay.hidden{opacity:0;pointer-events:none}
@@ -269,8 +272,8 @@ canvas#knob:active{cursor:grabbing}
 }
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .wc-zone-label{font-size:7.5px;letter-spacing:.35em;font-weight:600;margin-bottom:4px;font-family:'IBM Plex Mono',monospace;opacity:.7}
-.wc-name{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:15px;letter-spacing:.18em;margin-bottom:7px;display:flex;align-items:center;gap:6px}
-.wc-name .prism-glyph{font-size:18px;filter:drop-shadow(0 0 8px rgba(52,211,153,.8))}
+.wc-name{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:12px;letter-spacing:.14em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.wc-name .prism-glyph{font-size:15px;filter:drop-shadow(0 0 8px rgba(52,211,153,.8))}
 .wc-bar{height:3px;border-radius:2px;background:rgba(160,180,210,.15);margin-bottom:5px}
 .wc-fill{height:100%;border-radius:2px;transition:width .4s}
 .wc-stat{font-size:9px;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;opacity:.75}
@@ -312,7 +315,8 @@ canvas#knob:active{cursor:grabbing}
   background:rgba(253,224,71,.15);border:1px solid rgba(253,224,71,.4);color:var(--gold);
 }
 .daily-badge.solved{background:rgba(34,211,238,.1);border-color:rgba(34,211,238,.4);color:var(--laser)}
-/* Admin mode — highlight editor bar */
+/* Hide skip button in non-zone play modes */
+#app.hide-skip-btn #skip-btn{display:none!important}
 #app.admin-mode .hud-editor-section{background:rgba(239,68,68,.07);border-radius:8px}
 .admin-tag{
   font-size:6px;letter-spacing:.12em;color:#fca5a5;font-weight:600;white-space:nowrap;
@@ -824,17 +828,16 @@ canvas#knob:active{cursor:grabbing}
     </div>
     <div id="overlay-worldmap" class="overlay hidden" style="z-index:20">
       <div class="panel" style="max-width:420px;width:100%;padding:18px 16px">
-        <div class="zone-map-header">SELECT ZONE</div>
+        
         <div class="zone-grid" id="world-grid"></div>
         <button class="daily-card" id="daily-card-btn" onclick="openDailyPuzzle()">
           <div class="daily-icon" style="font-size:22px;font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--gold);line-height:1;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:12px;letter-spacing:.06em;opacity:.8" id="daily-card-daynum">--</span><span style="font-size:9.6px;letter-spacing:.1em;opacity:.6" id="daily-card-month">---</span></div>
           <div class="daily-info">
-            <div class="daily-label" style="color:var(--ink);letter-spacing:.18em;font-size:8.5px">Start your daily streak</div>
             <div class="daily-name" id="daily-card-name">LOADING…</div>
             <div class="daily-streak" id="daily-card-streak"></div>
           </div>
         </button>
-        <button class="btn build-btn" id="build-btn">⚙ BUILD</button>
+        <button class="btn build-btn" id="build-btn">⚙ BUILD & SHARE</button>
       </div>
     </div>
     <div id="overlay-levelselect" class="overlay hidden" style="z-index:21">
@@ -1810,6 +1813,8 @@ function loadSubLevel(){
   document.getElementById('fire-btn').disabled=false;
   document.getElementById('fire-btn').classList.add('ready');
   checkSlabTIR();
+  // In zone play, skip button should always be visible
+  if(!ED.dailyPlay&&!ED.communityPlay)document.getElementById('app').classList.remove('hide-skip-btn');
 }
 
 function updateHUD(){
@@ -2200,6 +2205,13 @@ document.addEventListener('keydown',e=>{
 // BUTTONS
 // =====================================================================
 document.getElementById('fire-btn').addEventListener('click',fire);
+
+// Show/hide skip button based on current play mode
+// Skip is only available in zone level play; not in daily/community play
+function updateBottomButtons(){
+  const hideSkip=ED.dailyPlay||ED.communityPlay;
+  document.getElementById('app').classList.toggle('hide-skip-btn',hideSkip);
+}
 document.getElementById('reset-btn').addEventListener('click',resetLevel);
 document.getElementById('next-btn').addEventListener('click',()=>{
   const next=state.levelIndex+1;
@@ -3168,8 +3180,8 @@ function drawMirror(m,selected,mirrorIdx=0){
   // ---- FIXED mirror: screw heads at both endpoints ----
   // A mirror is "fixed" when it can neither move nor rotate (and has no auto-motion)
   if(!m.canMove&&!m.canRotate&&!m.motion&&!m.rotMotion){
-    drawScrewHead(p1.x,p1.y,m.angle,7.5);
-    drawScrewHead(p2.x,p2.y,m.angle,7.5);
+    drawScrewHead(p1.x,p1.y,m.angle,10.5);
+    drawScrewHead(p2.x,p2.y,m.angle,10.5);
   }
 
   // ---- MOVABLE mirror: drag handle (1.2× bigger than before) ----
@@ -3194,7 +3206,7 @@ function drawMirror(m,selected,mirrorIdx=0){
   // ---- ROTATABLE mirror: rotation arrows at centre ----
   if(m.canRotate||m.rotMotion){
     const rotColor=selected?'rgba(240,171,252,.95)':'rgba(253,224,71,.88)';
-    drawRotationSymbol(m.x,m.y,10,rotColor);
+    drawRotationSymbol(m.x,m.y,14,rotColor);
   }
 
   ctx.restore();
@@ -4346,9 +4358,8 @@ function loadCommunityPuzzle(data){
   state.selectedSlab=(!state.mirrors.length&&state.slabs.length)?0:null;
   document.getElementById('fire-btn').disabled=false;
   document.getElementById('fire-btn').classList.add('ready');
-  updateHUD();updateKnobUI();checkSlabTIR();
+  updateHUD();updateKnobUI();checkSlabTIR();updateBottomButtons();
   setTimeout(resize,50);
-  // Show community intro overlay
   document.getElementById('cp-label').textContent='COMMUNITY PUZZLE';
   document.getElementById('cp-name').textContent=ED.name;
   document.getElementById('cp-hint').textContent=ED.hint;
@@ -4367,6 +4378,7 @@ function exitCommunityPuzzle(){
   document.getElementById('fire-btn').disabled=true;
   document.getElementById('fire-btn').classList.remove('ready');
   history.replaceState(null,'',location.pathname);
+  updateBottomButtons();
   showWorldMap();
 }
 
@@ -4534,7 +4546,7 @@ function _loadDailyIntoGame(data){
   state.selectedSlab=(!state.mirrors.length&&state.slabs.length)?0:null;
   document.getElementById('fire-btn').disabled=false;
   document.getElementById('fire-btn').classList.add('ready');
-  updateHUD();updateKnobUI();checkSlabTIR();
+  updateHUD();updateKnobUI();checkSlabTIR();updateBottomButtons();
   setTimeout(resize,50);
 }
 
@@ -4549,6 +4561,7 @@ function exitDailyPuzzle(){
   state.firing=false;state.bulletPhase=null;state.won=false;state.beams=[];state.particles=[];
   document.getElementById('fire-btn').disabled=true;
   document.getElementById('fire-btn').classList.remove('ready');
+  updateBottomButtons();
   showWorldMap();
 }
 
@@ -4561,6 +4574,7 @@ document.getElementById('dp-back-btn').addEventListener('click',()=>{
   document.getElementById('overlay-daily').classList.add('hidden');
   ED.testing=false;ED.dailyPlay=false;
   document.getElementById('app').classList.remove('editor-testing');
+  updateBottomButtons();
   showWorldMap();
 });
 document.getElementById('dp-home-btn').addEventListener('click',()=>exitDailyPuzzle());
@@ -4775,7 +4789,7 @@ function enterAdminEditorFresh(){
 let _menuHighlightIdx=0;
 const _MENU_ITEM_IDS=['zone-card-0','zone-card-1','zone-card-2','zone-card-3','daily-card-btn','build-btn'];
 
-const _MENU_LABELS=['ZONE 1','ZONE 2','ZONE 3','ZONE 4','DAILY PUZZLE','BUILD'];
+const _MENU_LABELS=['ZONE 1','ZONE 2','ZONE 3','ZONE 4','DAILY PUZZLE','BUILD & SHARE'];
 function _applyMenuHighlight(){
   _MENU_ITEM_IDS.forEach((id,i)=>{
     const el=document.getElementById(id);
@@ -4955,7 +4969,6 @@ function showStreakCelebration(streak){
           <div class="streak-cel-subtle-num">${streak}</div>
           <div class="streak-cel-subtle-right">
             <div class="streak-cel-subtle-label">DAY STREAK</div>
-            <div class="streak-cel-subtle-msg">${data.msg}</div>
           </div>
         </div>
       </div>`;
